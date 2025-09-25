@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:dio/dio.dart';
+import 'package:intl/intl.dart';
 import '../../services/api_service.dart';
 import '../semaian/seed_semai/seed_list_page.dart';
 
@@ -19,8 +20,8 @@ class _KegiatanTanamDirectPageState extends State<KegiatanTanamDirectPage> {
   // Controllers
   final _seedCtrl = TextEditingController();
   final _amountCtrl = TextEditingController();
+  final _seedUnitCtrl = TextEditingController();
   final _supplierCtrl = TextEditingController();
-  final _priceCtrl = TextEditingController();
   final _totalCostCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
   final _dateCtrl = TextEditingController();
@@ -31,22 +32,27 @@ class _KegiatanTanamDirectPageState extends State<KegiatanTanamDirectPage> {
 
   final ApiService _api = ApiService();
 
+  final _currencyFormatter = NumberFormat.currency(
+    locale: 'id_ID',
+    symbol: 'Rp ',
+    decimalDigits: 0,
+  );
+
   @override
   void initState() {
     super.initState();
     _dateCtrl.text = _formatYMD(_plantingDate);
+    _totalCostCtrl.text = _currencyFormatter.format(0);
     _amountCtrl.addListener(_recalculateTotal);
-    _priceCtrl.addListener(_recalculateTotal);
   }
 
   @override
   void dispose() {
     _amountCtrl.removeListener(_recalculateTotal);
-    _priceCtrl.removeListener(_recalculateTotal);
     _seedCtrl.dispose();
     _amountCtrl.dispose();
+    _seedUnitCtrl.dispose();
     _supplierCtrl.dispose();
-    _priceCtrl.dispose();
     _totalCostCtrl.dispose();
     _notesCtrl.dispose();
     _dateCtrl.dispose();
@@ -58,9 +64,9 @@ class _KegiatanTanamDirectPageState extends State<KegiatanTanamDirectPage> {
 
   void _recalculateTotal() {
     final qty = int.tryParse(_amountCtrl.text.trim()) ?? 0;
-    final price = int.tryParse(_priceCtrl.text.trim()) ?? 0;
+    final price = (_selectedSeed?['price'] as num?)?.toInt() ?? 0;
     final total = qty * price;
-    _totalCostCtrl.text = total.toString();
+    _totalCostCtrl.text = _currencyFormatter.format(total);
   }
 
   Future<void> _pickSeed() async {
@@ -74,11 +80,7 @@ class _KegiatanTanamDirectPageState extends State<KegiatanTanamDirectPage> {
         final name = result['name']?.toString() ?? '';
         final variety = result['variety']?.toString() ?? '';
         _seedCtrl.text = variety.isNotEmpty ? '$name ($variety)' : name;
-        // Prefill price if seed has price
-        final seedPrice = (result['price'] as num?)?.toInt();
-        if (seedPrice != null && seedPrice > 0) {
-          _priceCtrl.text = seedPrice.toString();
-        }
+        _seedUnitCtrl.text = result['unit']?.toString() ?? '';
         _recalculateTotal();
       });
     }
@@ -121,8 +123,7 @@ class _KegiatanTanamDirectPageState extends State<KegiatanTanamDirectPage> {
         'type': 'DIRECT_PURCHASE',
         'purchaseInfo': {
           'supplier': _supplierCtrl.text.trim(),
-          'price': int.tryParse(_priceCtrl.text.trim()) ?? 0,
-          'totalCost': int.tryParse(_totalCostCtrl.text.trim()) ?? 0,
+          'price': (_selectedSeed?['price'] as num?)?.toInt() ?? 0,
         },
       },
     };
@@ -287,28 +288,40 @@ class _KegiatanTanamDirectPageState extends State<KegiatanTanamDirectPage> {
                             ),
                             const SizedBox(width: 12),
                             SizedBox(
-                              width: 140,
+                              width: 100,
                               child: TextFormField(
-                                controller: _priceCtrl,
-                                decoration: _dec(
-                                  label: 'Harga Satuan',
-                                  prefixIcon: const Icon(
-                                    Icons.payments_outlined,
-                                    color: Color(0xFF2D6A4F),
-                                  ),
-                                  hint: 'Rp',
-                                ),
-                                keyboardType: TextInputType.number,
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.digitsOnly,
-                                ],
-                                validator: (v) {
-                                  if (v == null || v.isEmpty) return 'Wajib';
-                                  final val = int.tryParse(v);
-                                  if (val == null || val < 0) return '>= 0';
-                                  return null;
-                                },
+                                controller: _seedUnitCtrl,
+                                decoration: _dec(label: 'Satuan'),
+                                enabled: false,
                               ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.payments_outlined,
+                              color: Color(0xFF2D6A4F),
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Harga Satuan:',
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(color: Colors.grey[700]),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              _currencyFormatter.format(
+                                ((_selectedSeed?['price'] as num?)?.toInt() ??
+                                    0),
+                              ),
+                              style: Theme.of(context).textTheme.bodyMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFF1B5E20),
+                                  ),
                             ),
                           ],
                         ),
@@ -317,7 +330,7 @@ class _KegiatanTanamDirectPageState extends State<KegiatanTanamDirectPage> {
                           controller: _totalCostCtrl,
                           enabled: false,
                           decoration: _dec(
-                            label: 'Total Biaya (Qty x Harga)',
+                            label: 'Total Biaya',
                             prefixIcon: const Icon(
                               Icons.calculate,
                               color: Color(0xFF2D6A4F),

@@ -404,7 +404,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                             ),
                             const SizedBox(height: 24),
                             const Text(
-                              'Masuk ke AgriTrack',
+                              'Masuk ke Poktani',
                               style: TextStyle(
                                 fontSize: 32,
                                 fontWeight: FontWeight.w700,

@@ -417,7 +417,7 @@ class _RegisterPageState extends State<RegisterPage>
                             ),
                             const SizedBox(height: 24),
                             const Text(
-                              'Daftar AgriTrack',
+                              'Daftar Poktani',
                               style: TextStyle(
                                 fontSize: 32,
                                 fontWeight: FontWeight.w700,

@@ -37,14 +37,17 @@ class KegiatanTanamAddPage extends StatelessWidget {
               icon: Icons.eco,
               title: 'Ambil dari Penyemaian',
               subtitle: 'Gunakan bibit yang sudah siap dari hasil semai.',
-              onTap: () {
-                Navigator.push(
+              onTap: () async {
+                final result = await Navigator.push<bool>(
                   context,
                   MaterialPageRoute(
                     builder: (_) =>
                         KegiatanTanamFromNurseryPage(landId: landId),
                   ),
                 );
+                if (result == true && context.mounted) {
+                  Navigator.pop(context, true);
+                }
               },
             ),
             const SizedBox(height: 16),
@@ -53,13 +56,16 @@ class KegiatanTanamAddPage extends StatelessWidget {
               icon: Icons.grass,
               title: 'Tanam Langsung',
               subtitle: 'Mulai tanam benih baru secara langsung di lahan.',
-              onTap: () {
-                Navigator.push(
+              onTap: () async {
+                final result = await Navigator.push<bool>(
                   context,
                   MaterialPageRoute(
                     builder: (_) => KegiatanTanamDirectPage(landId: landId),
                   ),
                 );
+                if (result == true && context.mounted) {
+                  Navigator.pop(context, true);
+                }
               },
             ),
           ],

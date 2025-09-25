@@ -1,5 +1,3 @@
-
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../services/api_service.dart';
@@ -20,6 +18,7 @@ class _KegiatanTanamPageState extends State<KegiatanTanamPage> {
   String? _error;
   List<dynamic> _kegiatanTanam = [];
   final DateFormat _dateFormatter = DateFormat('d MMMM yyyy', 'id_ID');
+  bool _changed = false;
 
   @override
   void initState() {
@@ -58,36 +57,43 @@ class _KegiatanTanamPageState extends State<KegiatanTanamPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          widget.landId != null
-              ? 'Kegiatan Tanam Lahan'
-              : 'Semua Kegiatan Tanam',
+    return WillPopScope(
+      onWillPop: () async {
+        Navigator.pop(context, _changed);
+        return false;
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(
+            widget.landId != null
+                ? 'Kegiatan Tanam Lahan'
+                : 'Semua Kegiatan Tanam',
+          ),
+          centerTitle: true,
+          backgroundColor: const Color(0xFF2D6A4F),
+          foregroundColor: Colors.white,
         ),
-        centerTitle: true,
-        backgroundColor: const Color(0xFF2D6A4F),
-        foregroundColor: Colors.white,
+        body: _buildBody(),
+        floatingActionButton: widget.landId == null
+            ? null
+            : FloatingActionButton(
+                onPressed: () async {
+                  final result = await Navigator.push<bool>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          KegiatanTanamAddPage(landId: widget.landId!),
+                    ),
+                  );
+                  if (result == true) {
+                    _fetchKegiatanTanam();
+                    setState(() => _changed = true);
+                  }
+                },
+                backgroundColor: const Color(0xFF2D6A4F),
+                child: const Icon(Icons.add, color: Colors.white),
+              ),
       ),
-      body: _buildBody(),
-      floatingActionButton: widget.landId == null
-          ? null
-          : FloatingActionButton(
-              onPressed: () async {
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        KegiatanTanamAddPage(landId: widget.landId!),
-                  ),
-                );
-                if (result == true) {
-                  _fetchKegiatanTanam();
-                }
-              },
-              backgroundColor: const Color(0xFF2D6A4F),
-              child: const Icon(Icons.add, color: Colors.white),
-            ),
     );
   }
 
@@ -142,7 +148,7 @@ class _KegiatanTanamPageState extends State<KegiatanTanamPage> {
             ),
             child: InkWell(
               onTap: () async {
-                final result = await Navigator.push(
+                final result = await Navigator.push<bool>(
                   context,
                   MaterialPageRoute(
                     builder: (context) =>
@@ -151,6 +157,7 @@ class _KegiatanTanamPageState extends State<KegiatanTanamPage> {
                 );
                 if (result == true) {
                   _fetchKegiatanTanam();
+                  setState(() => _changed = true);
                 }
               },
               borderRadius: BorderRadius.circular(12),

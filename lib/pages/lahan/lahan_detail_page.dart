@@ -654,14 +654,17 @@ class _LahanDetailPageState extends State<LahanDetailPage>
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
+                onPressed: () async {
+                  final result = await Navigator.push<bool>(
                     context,
                     MaterialPageRoute(
                       builder: (context) =>
                           KegiatanTanamPage(landId: widget.id),
                     ),
                   );
+                  if (result == true) {
+                    _fetch();
+                  }
                 },
                 icon: const Icon(Icons.list_alt_rounded, size: 20),
                 label: const Text('Lihat Semua Kegiatan Tanam'),
@@ -731,13 +734,16 @@ class _LahanDetailPageState extends State<LahanDetailPage>
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: () {
-                Navigator.push(
+              onPressed: () async {
+                final result = await Navigator.push<bool>(
                   context,
                   MaterialPageRoute(
                     builder: (context) => ListPanenPage(landId: widget.id),
                   ),
                 );
+                if (result == true) {
+                  _fetch();
+                }
               },
               icon: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
               label: const Text('Lihat Hasil Panen'),
