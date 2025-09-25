@@ -3,6 +3,8 @@ import '../../services/api_service.dart';
 import '../../services/storage_service.dart';
 import '../../model/user.dart';
 import '../profile/profile_page.dart'; // Import ProfilePage
+import '../lahan/lahan_detail_page.dart';
+import '../lahan/lahan_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -17,7 +19,9 @@ class _HomePageState extends State<HomePage> {
 
   // Data states
   List<Map<String, dynamic>> myLahans = [];
-  List<Map<String, dynamic>> semaiData = [];
+  // Panen (harvest) counts per lahanId and active land tracking (based on kegiatan tanam status)
+  Map<String, int> _harvestCounts = {};
+  Set<String> _activeLandIds = {};
   User? _currentUser;
   bool isLoading = true;
   String? errorMessage;
@@ -51,6 +55,11 @@ class _HomePageState extends State<HomePage> {
     return 'U';
   }
 
+  String? _landIdOf(Map<String, dynamic> lahan) {
+    final dynamic anyId = lahan['_id'] ?? lahan['id'];
+    return anyId?.toString();
+  }
+
   Future<void> _fetchAllData() async {
     try {
       setState(() {
@@ -61,15 +70,15 @@ class _HomePageState extends State<HomePage> {
       // Refresh user data as well
       _loadUserData();
 
-      // Fetch data lahan dan semai saja
+      // Fetch lahan and kegiatan tanam to compute real panen counts and active lands
       final futures = await Future.wait([
         _apiService.get('/lahan'),
-        _apiService.get('/semai'),
+        _apiService.get('/kegiatantanam'),
       ]);
 
       // Pastikan response berupa List, jika response API berupa Map, ambil dari key 'data'
       final lahanRaw = futures[0].data;
-      final semaiRaw = futures[1].data;
+      final kegiatanRaw = futures[1].data;
 
       if (!mounted) return;
 
@@ -79,14 +88,33 @@ class _HomePageState extends State<HomePage> {
             : (lahanRaw['data'] is List
                   ? List<Map<String, dynamic>>.from(lahanRaw['data'])
                   : []);
-        semaiData = semaiRaw is List
-            ? List<Map<String, dynamic>>.from(semaiRaw)
-            : (semaiRaw['data'] is List
-                  ? List<Map<String, dynamic>>.from(semaiRaw['data'])
-                  : []);
+        // Compute harvest counts and active land ids from kegiatan tanam
+        final List<Map<String, dynamic>> kegiatanList = kegiatanRaw is List
+            ? List<Map<String, dynamic>>.from(kegiatanRaw)
+            : (kegiatanRaw is Map && kegiatanRaw['data'] is List
+                  ? List<Map<String, dynamic>>.from(kegiatanRaw['data'])
+                  : <Map<String, dynamic>>[]);
 
-        // Enhance lahan data dengan status dan productivity
-        _enhanceLahanData();
+        _harvestCounts = {};
+        _activeLandIds = {};
+        for (final act in kegiatanList) {
+          final status = (act['status']?.toString() ?? '').toLowerCase();
+          final land = act['landId'];
+          String? landId;
+          if (land is String) {
+            landId = land;
+          } else if (land is Map) {
+            final id = land['_id'] ?? land['id'];
+            if (id != null) landId = id.toString();
+          }
+          if (landId == null || landId.isEmpty) continue;
+
+          if (status == 'harvested') {
+            _harvestCounts.update(landId, (v) => v + 1, ifAbsent: () => 1);
+          } else {
+            _activeLandIds.add(landId);
+          }
+        }
 
         isLoading = false;
       });
@@ -99,72 +127,6 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  void _enhanceLahanData() {
-    for (var lahan in myLahans) {
-      // Tentukan status berdasarkan data semai
-      String status = _determineStatus(lahan);
-      lahan['status'] = status;
-
-      // Hitung produktivitas (dummy calculation based on land area and semai data)
-      double productivity = _calculateProductivity(lahan);
-      lahan['productivity'] = productivity;
-    }
-  }
-
-  String _determineStatus(Map<String, dynamic> lahan) {
-    final semaiList = lahan['semai'] as List<dynamic>? ?? [];
-
-    if (semaiList.isEmpty) {
-      return 'Istirahat';
-    }
-
-    // Cek apakah ada semai yang masih aktif
-    final now = DateTime.now();
-    for (var semai in semaiList) {
-      try {
-        final endDate = DateTime.parse(semai['endDate']);
-        if (endDate.isAfter(now)) {
-          // Masih dalam periode semai
-          return 'Masa Tanam';
-        }
-      } catch (e) {
-        // Jika parsing gagal, asumsikan masa tanam
-        return 'Masa Tanam';
-      }
-    }
-
-    // Jika semai sudah selesai
-    return 'Masa Tanam';
-  }
-
-  double _calculateProductivity(Map<String, dynamic> lahan) {
-    // Hitung produktivitas berdasarkan berbagai faktor
-    double baseProductivity = 75.0;
-
-    // Faktor luas lahan
-    final landArea = (lahan['landArea'] as num?)?.toDouble() ?? 0;
-    if (landArea > 15000) {
-      baseProductivity += 10.0;
-    } else if (landArea > 5000) {
-      baseProductivity += 5.0;
-    }
-
-    // Faktor pupuk
-    final pupukList = lahan['pupuk'] as List<dynamic>? ?? [];
-    if (pupukList.isNotEmpty) {
-      baseProductivity += 5.0 * pupukList.length;
-    }
-
-    // Faktor pestisida
-    final pestisidaList = lahan['pestisida'] as List<dynamic>? ?? [];
-    if (pestisidaList.isNotEmpty) {
-      baseProductivity += 3.0 * pestisidaList.length;
-    }
-
-    // Cap maksimal 95%
-    return baseProductivity > 95.0 ? 95.0 : baseProductivity;
-  }
-
   String _formatLandArea(dynamic landArea) {
     if (landArea == null) return '0 m²';
     final area = landArea.toDouble();
@@ -175,25 +137,16 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'masa tanam':
-        return const Color(0xFF2E7D32);
-
-      case 'istirahat':
-        return const Color(0xFF424242);
-      default:
-        return const Color(0xFF424242);
-    }
-  }
-
-  void _navigateToLahanDetail(Map<String, dynamic> lahan) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Navigasi ke detail lahan: ${lahan['name']}'),
-        backgroundColor: const Color(0xFF2D6A4F),
-      ),
+  void _navigateToLahanDetail(Map<String, dynamic> lahan) async {
+    final id = _landIdOf(lahan);
+    if (id == null || id.isEmpty) return;
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => LahanDetailPage(id: id)),
     );
+    if (mounted && result == true) {
+      await _fetchAllData();
+    }
   }
 
   // Method untuk navigasi ke halaman profile
@@ -353,14 +306,11 @@ class _HomePageState extends State<HomePage> {
   Widget _buildQuickStats() {
     final totalLahan = myLahans.length;
     final activeLahan = myLahans
-        .where((lahan) => lahan['status'] != 'Istirahat')
+        .where((lahan) => _activeLandIds.contains(_landIdOf(lahan)))
         .length;
-    final avgProductivity = myLahans.isNotEmpty
-        ? myLahans
-                  .map((e) => e['productivity'] as double)
-                  .reduce((a, b) => a + b) /
-              myLahans.length
-        : 0.0;
+    final totalPanen = _harvestCounts.values.isEmpty
+        ? 0
+        : _harvestCounts.values.reduce((a, b) => a + b);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -408,15 +358,15 @@ class _HomePageState extends State<HomePage> {
                 child: _buildStatCard(
                   '$activeLahan',
                   'Lahan Aktif',
-                  Icons.agriculture_rounded,
+                  Icons.star,
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: _buildStatCard(
-                  '${avgProductivity.toStringAsFixed(1)}%',
-                  'Produktivitas',
-                  Icons.trending_up_rounded,
+                  '$totalPanen',
+                  'Jumlah Panen',
+                  Icons.agriculture,
                 ),
               ),
             ],
@@ -525,13 +475,14 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             TextButton(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Navigasi ke semua lahan'),
-                    backgroundColor: const Color(0xFF2D6A4F),
-                  ),
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LahanPage()),
                 );
+                if (mounted && result == true) {
+                  await _fetchAllData();
+                }
               },
               child: Text(
                 'Lihat Semua',
@@ -612,25 +563,33 @@ class _HomePageState extends State<HomePage> {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: _getStatusColor(
-                                      lahan['status'] ?? 'Istirahat',
-                                    ),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    lahan['status'] ?? 'Istirahat',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
+                                Builder(
+                                  builder: (_) {
+                                    final id = _landIdOf(lahan) ?? '';
+                                    final isActive = _activeLandIds.contains(
+                                      id,
+                                    );
+                                    return Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: isActive
+                                            ? const Color(0xFF2E7D32)
+                                            : const Color(0xFF424242),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        isActive ? 'Aktif' : 'Tidak Aktif',
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    );
+                                  },
                                 ),
                               ],
                             ),
@@ -698,7 +657,7 @@ class _HomePageState extends State<HomePage> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text(
-                                      'Produktivitas',
+                                      'Jumlah Panen',
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: Colors.black54,
@@ -706,7 +665,7 @@ class _HomePageState extends State<HomePage> {
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
-                                      '${(lahan['productivity'] ?? 0.0).toStringAsFixed(1)}%',
+                                      '${_harvestCounts[_landIdOf(lahan)] ?? 0}',
                                       style: TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.bold,

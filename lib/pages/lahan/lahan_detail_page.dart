@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:niteni/pages/kegiatan_tanam/kegiatan_tanam_add_page.dart';
-import 'package:niteni/pages/panen/list_panen_page.dart';
+import 'package:niteni/pages/kegiatan_tanam/kegiatan_tanam_detail_page.dart';
 import '../../services/api_service.dart';
 
 import '../kegiatan_tanam/kegiatan_tanam_page.dart';
@@ -65,14 +65,24 @@ class _LahanDetailPageState extends State<LahanDetailPage>
         _data = null;
       }
 
-      // Fetch kegiatan tanam
+      // Fetch kegiatan tanam (ambil lebih banyak untuk mendeteksi >3 non-harvested)
       final resKegiatan = await _api.get(
-        '/kegiatantanam?landId=${widget.id}&limit=5',
+        '/kegiatantanam?landId=${widget.id}&limit=20',
       );
       final bodyKegiatan = resKegiatan.data;
       if (bodyKegiatan is Map<String, dynamic> &&
           bodyKegiatan['data'] is List) {
-        _kegiatanTanam = bodyKegiatan['data'];
+        final List data = bodyKegiatan['data'] as List;
+        // Filter: jangan tampilkan yang statusnya 'harvested'
+        _kegiatanTanam = data
+            .where(
+              (item) =>
+                  ((item as Map<String, dynamic>)['status'] ?? '')
+                      .toString()
+                      .toLowerCase() !=
+                  'harvested',
+            )
+            .toList();
       } else {
         _kegiatanTanam = [];
       }
@@ -554,37 +564,161 @@ class _LahanDetailPageState extends State<LahanDetailPage>
                 ),
               ),
             )
-          else
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  final result = await Navigator.push<bool>(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          KegiatanTanamPage(landId: widget.id),
+          else ...[
+            // Tampilkan maksimal 3 item kegiatan tanam
+            ..._kegiatanTanam.take(3).map((item) {
+              final map = (item as Map<String, dynamic>);
+              final seed = map['seedId'] as Map<String, dynamic>?;
+              final seedName = seed?['name']?.toString() ?? 'Benih';
+              final seedVariety = seed?['variety']?.toString();
+              final status = map['status']?.toString() ?? '-';
+              final plantingDateStr = map['plantingDate']?.toString();
+              final dateLabel =
+                  plantingDateStr != null && plantingDateStr.length >= 10
+                  ? plantingDateStr.substring(0, 10)
+                  : '-';
+
+              Color chipBg;
+              Color chipFg;
+              switch (status.toLowerCase()) {
+                case 'active':
+                  chipBg = Colors.green.shade100;
+                  chipFg = Colors.green.shade800;
+                  break;
+                case 'harvested':
+                  chipBg = Colors.teal.shade100;
+                  chipFg = Colors.teal.shade800;
+                  break;
+                case 'pending':
+                  chipBg = Colors.amber.shade100;
+                  chipFg = Colors.amber.shade800;
+                  break;
+                default:
+                  chipBg = Colors.grey.shade200;
+                  chipFg = Colors.grey.shade800;
+              }
+
+              final String? kegiatanId =
+                  map['_id']?.toString() ?? map['id']?.toString();
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: kegiatanId == null
+                      ? null
+                      : () async {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  KegiatanTanamDetailPage(id: kegiatanId),
+                            ),
+                          );
+                          if (result == true) {
+                            _fetch();
+                          }
+                        },
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(
+                      Icons.eco_rounded,
+                      color: Colors.green,
+                      size: 18,
                     ),
-                  );
-                  if (result == true) {
-                    _fetch();
-                  }
-                },
-                icon: const Icon(Icons.list_alt_rounded, size: 20),
-                label: const Text('Lihat Semua Kegiatan Tanam'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue.shade700,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            (seedVariety != null && seedVariety.isNotEmpty)
+                                ? '$seedName ($seedVariety)'
+                                : seedName,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.calendar_today,
+                                size: 14,
+                                color: Colors.grey,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Ditanam: $dateLabel',
+                                style: const TextStyle(color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: chipBg,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        status,
+                        style: TextStyle(
+                          color: chipFg,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                    ),
                   ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
+                ),
+              );
+            }),
+            if (_kegiatanTanam.length > 3)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    final result = await Navigator.push<bool>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            KegiatanTanamPage(landId: widget.id),
+                      ),
+                    );
+                    if (result == true) {
+                      _fetch();
+                    }
+                  },
+                  icon: const Icon(Icons.list_alt_rounded, size: 20),
+                  label: const Text('Lihat Semua Kegiatan Tanam'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue.shade700,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
                   ),
                 ),
               ),
-            ),
+          ],
         ],
       ),
     );
