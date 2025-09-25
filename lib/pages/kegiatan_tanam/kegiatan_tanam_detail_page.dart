@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:niteni/pages/kegiatan_tanam/pemupukan/list_pemupukan.dart';
 import 'package:niteni/pages/kegiatan_tanam/penyemprotan/list_penyemprotan.dart';
 import 'package:niteni/pages/kegiatan_tanam/pemanenan/mulai_pemanenan.dart';
+import 'package:niteni/pages/kegiatan_tanam/biaya_operasional/list_biaya_operasional.dart';
 import '../../services/api_service.dart';
 
 class KegiatanTanamDetailPage extends StatefulWidget {
@@ -104,6 +105,8 @@ class _KegiatanTanamDetailPageState extends State<KegiatanTanamDetailPage> {
                   const SizedBox(height: 16),
                   _buildHarvestTimelineCard(),
                   const SizedBox(height: 16),
+                  _buildOperationalCostCard(),
+                  const SizedBox(height: 16),
                   _buildActionButtons(),
                   const SizedBox(height: 16),
                   _buildFinancialCard(),
@@ -114,6 +117,80 @@ class _KegiatanTanamDetailPageState extends State<KegiatanTanamDetailPage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildOperationalCostCard() {
+    final totalOperationalCost = (_data?['operationalCost'] as num?)
+        ?.toDouble();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.indigo.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.payments_outlined,
+                  color: Colors.indigo,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Biaya Operasional',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2D6A4F),
+                ),
+              ),
+              const Spacer(),
+              TextButton.icon(
+                onPressed: () async {
+                  final result = await Navigator.push<bool>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => BiayaOperasionalListPage(
+                        plantingActivityId: widget.id,
+                      ),
+                    ),
+                  );
+                  if (result == true && mounted) {
+                    _fetchDetail();
+                  }
+                },
+                icon: const Icon(Icons.open_in_new, size: 18),
+                label: const Text('Kelola'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            totalOperationalCost != null
+                ? _currencyFormatter.format(totalOperationalCost)
+                : 'Tambahkan biaya operasional tambahan jika ada',
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Ringkasan dari semua biaya operasional tambahan',
+            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+          ),
+        ],
       ),
     );
   }

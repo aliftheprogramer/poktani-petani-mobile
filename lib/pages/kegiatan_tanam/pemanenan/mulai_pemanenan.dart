@@ -109,13 +109,18 @@ class _MulaiPemanenanPageState extends State<MulaiPemanenanPage> {
       );
 
       if (mounted) {
+        // Optional: show a brief success feedback
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Panen berhasil dicatat!'),
             backgroundColor: Colors.green,
+            duration: Duration(milliseconds: 800),
           ),
         );
-        Navigator.pop(context, true); // Return true to indicate success
+        // Pop two routes safely using a captured NavigatorState
+        final navigator = Navigator.of(context);
+        navigator.pop(true);
+        Future.microtask(() => navigator.pop(true));
       }
     } catch (e) {
       if (mounted) {
