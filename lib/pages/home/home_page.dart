@@ -111,7 +111,8 @@ class _HomePageState extends State<HomePage> {
 
           if (status == 'harvested') {
             _harvestCounts.update(landId, (v) => v + 1, ifAbsent: () => 1);
-          } else {
+          } else if (status == 'active') {
+            // Lahan dianggap aktif hanya jika memiliki kegiatan tanam dengan status 'active'
             _activeLandIds.add(landId);
           }
         }

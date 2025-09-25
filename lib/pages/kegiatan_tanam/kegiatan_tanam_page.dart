@@ -46,14 +46,14 @@ class _KegiatanTanamPageState extends State<KegiatanTanamPage> {
       if (res.data is Map<String, dynamic> && res.data['data'] is List) {
         // Original list returned from API
         final originalList = (res.data['data'] as List);
-        // Filter out items with status 'harvested' so they don't appear here
+        // Filter: hanya tampilkan yang statusnya 'Active'
         final list = originalList
             .where(
               (item) =>
                   ((item as Map<String, dynamic>)['status'] ?? '')
                       .toString()
-                      .toLowerCase() !=
-                  'harvested',
+                      .toLowerCase() ==
+                  'active',
             )
             .toList();
         setState(() {
@@ -322,6 +322,10 @@ class _StatusChip extends StatelessWidget {
       case 'pending':
         bg = Colors.amber.shade100;
         fg = Colors.amber.shade800;
+        break;
+      case 'failed':
+        bg = Colors.red.shade100;
+        fg = Colors.red.shade800;
         break;
       default:
         bg = Colors.grey.shade200;

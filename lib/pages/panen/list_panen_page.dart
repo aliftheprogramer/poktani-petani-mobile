@@ -39,13 +39,17 @@ class _ListPanenPageState extends State<ListPanenPage> {
       final res = await _api.get('/kegiatantanam');
       if (res.data is Map<String, dynamic> && res.data['data'] is List) {
         final allActivities = res.data['data'] as List;
-        // Filter only harvested activities
-        final harvestedOnly = allActivities
-            .where((activity) => activity['status'] == 'Harvested')
+        // Filter activities with status "Harvested" or "Failed"
+        final completedActivities = allActivities
+            .where(
+              (activity) =>
+                  activity['status'] == 'Harvested' ||
+                  activity['status'] == 'Failed',
+            )
             .toList();
 
         setState(() {
-          _harvestedActivities = harvestedOnly;
+          _harvestedActivities = completedActivities;
         });
       } else {
         _error = 'Format data tidak sesuai';
@@ -124,7 +128,7 @@ class _ListPanenPageState extends State<ListPanenPage> {
             ),
             const SizedBox(height: 16),
             const Text(
-              'Belum ada data panen',
+              'Belum ada data hasil panen',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
@@ -133,7 +137,7 @@ class _ListPanenPageState extends State<ListPanenPage> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Data panen akan muncul setelah kegiatan tanam dipanen',
+              'Data akan muncul setelah kegiatan tanam selesai (berhasil/gagal)',
               style: TextStyle(color: Colors.grey),
               textAlign: TextAlign.center,
             ),
@@ -161,22 +165,27 @@ class _ListPanenPageState extends State<ListPanenPage> {
     final seedName = seedData?['name'] ?? 'Tanaman tidak diketahui';
     final seedVariety = seedData?['variety']?.toString();
     final landName = landData?['name'] ?? 'Lahan tidak diketahui';
+    final status = activity['status']?.toString() ?? '';
 
-    final updatedAtStr =
-        activity['updatedAt'] as String?; // Harvest completion date
-
-    String harvestDate = 'Tanggal tidak diketahui';
+    final updatedAtStr = activity['updatedAt'] as String?;
+    String completionDate = 'Tanggal tidak diketahui';
 
     if (updatedAtStr != null) {
       final date = DateTime.tryParse(updatedAtStr);
       if (date != null) {
-        harvestDate = _dateFormatter.format(date);
+        completionDate = _dateFormatter.format(date);
       }
     }
 
     final totalCost = (activity['totalCost'] as num?)?.toDouble() ?? 0;
     final totalRevenue = (activity['totalRevenue'] as num?)?.toDouble() ?? 0;
     final profit = totalRevenue - totalCost;
+
+    // Determine status display
+    bool isFailed = status.toLowerCase() == 'failed';
+    Color statusColor = isFailed ? Colors.red : Colors.green;
+    IconData statusIcon = isFailed ? Icons.cancel : Icons.check_circle;
+    String statusText = isFailed ? 'Gagal' : 'Dipanen';
 
     return Card(
       elevation: 3,
@@ -206,12 +215,12 @@ class _ListPanenPageState extends State<ListPanenPage> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
+                      color: statusColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(
-                      Icons.agriculture,
-                      color: Colors.green,
+                    child: Icon(
+                      isFailed ? Icons.dangerous : Icons.agriculture,
+                      color: statusColor,
                       size: 24,
                     ),
                   ),
@@ -260,22 +269,22 @@ class _ListPanenPageState extends State<ListPanenPage> {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.green.shade100,
+                      color: statusColor.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: statusColor.withOpacity(0.3),
+                        width: 1,
+                      ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.check_circle,
-                          size: 16,
-                          color: Colors.green.shade700,
-                        ),
+                        Icon(statusIcon, size: 16, color: statusColor),
                         const SizedBox(width: 4),
                         Text(
-                          'Dipanen',
+                          statusText,
                           style: TextStyle(
-                            color: Colors.green.shade700,
+                            color: statusColor,
                             fontWeight: FontWeight.w600,
                             fontSize: 12,
                           ),
@@ -288,7 +297,7 @@ class _ListPanenPageState extends State<ListPanenPage> {
 
               const SizedBox(height: 16),
 
-              // Harvest date section
+              // Completion date section
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -297,41 +306,88 @@ class _ListPanenPageState extends State<ListPanenPage> {
                   border: Border.all(color: Colors.grey.shade200),
                 ),
                 child: _buildTimelineItem(
-                  icon: Icons.agriculture,
-                  color: Colors.green,
-                  title: 'Tanggal Panen',
-                  date: harvestDate,
+                  icon: isFailed ? Icons.dangerous : Icons.agriculture,
+                  color: statusColor,
+                  title: isFailed ? 'Tanggal Gagal' : 'Tanggal Panen',
+                  date: completionDate,
                   isFirst: true,
                 ),
               ),
 
               const SizedBox(height: 16),
 
-              // Financial summary
-              Row(
-                children: [
-                  _buildFinancialChip(
-                    icon: Icons.arrow_downward,
-                    color: Colors.red,
-                    label: 'Biaya',
-                    value: _currencyFormatter.format(totalCost),
-                  ),
-                  const SizedBox(width: 8),
-                  _buildFinancialChip(
-                    icon: Icons.arrow_upward,
-                    color: Colors.green,
-                    label: 'Pendapatan',
-                    value: _currencyFormatter.format(totalRevenue),
-                  ),
-                  const SizedBox(width: 8),
-                  _buildFinancialChip(
-                    icon: profit >= 0 ? Icons.trending_up : Icons.trending_down,
-                    color: profit >= 0 ? Colors.blue : Colors.orange,
-                    label: 'Profit',
-                    value: _currencyFormatter.format(profit),
-                  ),
-                ],
-              ),
+              // Financial summary (only show if not failed or if there are costs)
+              if (!isFailed || totalCost > 0) ...[
+                Row(
+                  children: [
+                    _buildFinancialChip(
+                      icon: Icons.arrow_downward,
+                      color: Colors.red,
+                      label: 'Biaya',
+                      value: _currencyFormatter.format(totalCost),
+                    ),
+                    if (!isFailed) ...[
+                      const SizedBox(width: 8),
+                      _buildFinancialChip(
+                        icon: Icons.arrow_upward,
+                        color: Colors.green,
+                        label: 'Pendapatan',
+                        value: _currencyFormatter.format(totalRevenue),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildFinancialChip(
+                        icon: profit >= 0
+                            ? Icons.trending_up
+                            : Icons.trending_down,
+                        color: profit >= 0 ? Colors.blue : Colors.orange,
+                        label: 'Profit',
+                        value: _currencyFormatter.format(profit),
+                      ),
+                    ] else ...[
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 2,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: Colors.red.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Column(
+                            children: [
+                              Icon(Icons.warning, size: 16, color: Colors.red),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Status',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Gagal Panen',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
             ],
           ),
         ),

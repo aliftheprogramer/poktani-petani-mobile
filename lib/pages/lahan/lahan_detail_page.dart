@@ -73,14 +73,14 @@ class _LahanDetailPageState extends State<LahanDetailPage>
       if (bodyKegiatan is Map<String, dynamic> &&
           bodyKegiatan['data'] is List) {
         final List data = bodyKegiatan['data'] as List;
-        // Filter: jangan tampilkan yang statusnya 'harvested'
+        // Filter: hanya tampilkan yang statusnya 'Active'
         _kegiatanTanam = data
             .where(
               (item) =>
                   ((item as Map<String, dynamic>)['status'] ?? '')
                       .toString()
-                      .toLowerCase() !=
-                  'harvested',
+                      .toLowerCase() ==
+                  'active',
             )
             .toList();
       } else {
@@ -593,6 +593,10 @@ class _LahanDetailPageState extends State<LahanDetailPage>
                   chipBg = Colors.amber.shade100;
                   chipFg = Colors.amber.shade800;
                   break;
+                case 'failed':
+                  chipBg = Colors.red.shade100;
+                  chipFg = Colors.red.shade800;
+                  break;
                 default:
                   chipBg = Colors.grey.shade200;
                   chipFg = Colors.grey.shade800;
@@ -626,62 +630,64 @@ class _LahanDetailPageState extends State<LahanDetailPage>
                   child: Padding(
                     padding: const EdgeInsets.all(12),
                     child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(
-                      Icons.eco_rounded,
-                      color: Colors.green,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            (seedVariety != null && seedVariety.isNotEmpty)
-                                ? '$seedName ($seedVariety)'
-                                : seedName,
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          Icons.eco_rounded,
+                          color: Colors.green,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Icon(
-                                Icons.calendar_today,
-                                size: 14,
-                                color: Colors.grey,
-                              ),
-                              const SizedBox(width: 6),
                               Text(
-                                'Ditanam: $dateLabel',
-                                style: const TextStyle(color: Colors.grey),
+                                (seedVariety != null && seedVariety.isNotEmpty)
+                                    ? '$seedName ($seedVariety)'
+                                    : seedName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.calendar_today,
+                                    size: 14,
+                                    color: Colors.grey,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Ditanam: $dateLabel',
+                                    style: const TextStyle(color: Colors.grey),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: chipBg,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        status,
-                        style: TextStyle(
-                          color: chipFg,
-                          fontWeight: FontWeight.w600,
                         ),
-                      ),
-                    ),
-                  ],
+                        const SizedBox(width: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: chipBg,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            status,
+                            style: TextStyle(
+                              color: chipFg,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

@@ -887,46 +887,166 @@ class _KegiatanTanamDetailPageState extends State<KegiatanTanamDetailPage> {
               ),
             ),
             const SizedBox(width: 12),
-            const Text('Konfirmasi Panen'),
+            const Text('Hasil Kegiatan Tanam'),
           ],
         ),
         content: const Text(
-          'Apakah Anda yakin ingin memulai proses panen untuk kegiatan tanam ini?',
+          'Bagaimana hasil dari kegiatan tanam ini?',
+          style: TextStyle(fontSize: 16),
         ),
         actions: [
+          // Tombol Gagal
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () async {
+                Navigator.pop(context);
+                await _markAsFailed();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              icon: const Icon(Icons.close, size: 18),
+              label: const Text(
+                'Gagal Panen',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Tombol Berhasil
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () async {
+                Navigator.pop(context);
+                await _proceedToHarvest();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              icon: const Icon(Icons.agriculture, size: 18),
+              label: const Text(
+                'Berhasil - Lanjut ke Form Panen',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Tombol Batal
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              // Navigate to harvest page
-              if (mounted) {
-                final result = await Navigator.push<bool>(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => MulaiPemanenanPage(
-                      kegiatanTanamId: widget.id,
-                      kegiatanTanamData: _data,
-                    ),
-                  ),
-                );
-
-                // If harvest was successful, refresh the detail page
-                if (result == true && mounted) {
-                  _fetchDetail();
-                }
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Ya, Mulai Panen'),
+            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _markAsFailed() async {
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(color: Color(0xFF2D6A4F)),
+        ),
+      );
+
+      // Update status to Failed
+      await _api.put(
+        '/kegiatantanam/${widget.id}',
+        data: {
+          'status': 'Failed',
+          'harvestDate': DateTime.now().toIso8601String(),
+        },
+      );
+
+      // Close loading dialog
+      if (mounted) Navigator.pop(context);
+
+      // Show success message and navigate back to lahan detail
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.white),
+                SizedBox(width: 12),
+                Text(
+                  'Kegiatan tanam telah ditandai sebagai gagal',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.orange.shade600,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+
+        // Navigate back to lahan detail with refresh flag
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      // Close loading dialog if still showing
+      if (mounted) Navigator.pop(context);
+
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.white),
+                SizedBox(width: 12),
+                Text(
+                  'Gagal mengupdate status kegiatan tanam',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red.shade600,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _proceedToHarvest() async {
+    // Navigate to harvest form (existing functionality)
+    if (mounted) {
+      final result = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MulaiPemanenanPage(
+            kegiatanTanamId: widget.id,
+            kegiatanTanamData: _data,
+          ),
+        ),
+      );
+
+      // If harvest was successful, refresh the detail page
+      if (result == true && mounted) {
+        _fetchDetail();
+      }
+    }
   }
 }
