@@ -219,8 +219,6 @@ class _LahanDetailPageState extends State<LahanDetailPage>
                         children: [
                           _buildHeaderCard(),
                           const SizedBox(height: 20),
-                          _buildStatsGrid(),
-                          const SizedBox(height: 20),
                           _buildKegiatanTanamSection(),
                           const SizedBox(height: 20),
                           _buildPanenSection(),
@@ -424,6 +422,12 @@ class _LahanDetailPageState extends State<LahanDetailPage>
             'Kecamatan',
             _data!['district'] ?? '-',
           ),
+          const SizedBox(height: 12),
+          _buildInfoItem(
+            Icons.landscape_rounded,
+            'Lahan',
+            _data!['landArea'].toString(),
+          ),
         ],
       ),
     );
@@ -450,106 +454,6 @@ class _LahanDetailPageState extends State<LahanDetailPage>
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildStatsGrid() {
-    final semaiCount = (_data!['semai'] as List?)?.length ?? 0;
-    final pupukCount = (_data!['pupuk'] as List?)?.length ?? 0;
-    final pestisidaCount = (_data!['pestisida'] as List?)?.length ?? 0;
-    final luasLahan = _data!['landArea']?.toString() ?? '0';
-
-    return Row(
-      children: [
-        Expanded(
-          child: _buildStatCard(
-            'Luas Lahan',
-            '$luasLahan m²',
-            Icons.square_foot_rounded,
-            Colors.blue,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildStatCard(
-            'Semai',
-            '$semaiCount',
-            Icons.eco_rounded,
-            Colors.green,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildStatCard(
-            'Pupuk',
-            '$pupukCount',
-            Icons.science_rounded,
-            Colors.orange,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildStatCard(
-            'Pestisida',
-            '$pestisidaCount',
-            Icons.bug_report_rounded,
-            Colors.red,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatCard(
-    String title,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.1),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: kTextColor,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade600,
-              fontWeight: FontWeight.w500,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
     );
   }
 
@@ -686,8 +590,6 @@ class _LahanDetailPageState extends State<LahanDetailPage>
     );
   }
 
-  // di dalam class _LahanDetailPageState di lahan_detail_page.dart
-
   Widget _buildPanenSection() {
     return Container(
       decoration: BoxDecoration(
@@ -698,67 +600,6 @@ class _LahanDetailPageState extends State<LahanDetailPage>
             color: Colors.amber.withOpacity(0.1),
             blurRadius: 15,
             offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.amber.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  Icons.local_florist_rounded,
-                  color: Colors.amber.shade700,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Hasil Panen',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: kTextColor,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () async {
-                final result = await Navigator.push<bool>(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ListPanenPage(landId: widget.id),
-                  ),
-                );
-                if (result == true) {
-                  _fetch();
-                }
-              },
-              icon: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
-              label: const Text('Lihat Hasil Panen'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.amber.shade700,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-              ),
-            ),
           ),
         ],
       ),

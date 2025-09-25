@@ -19,6 +19,12 @@ class _KegiatanTanamPageState extends State<KegiatanTanamPage> {
   List<dynamic> _kegiatanTanam = [];
   final DateFormat _dateFormatter = DateFormat('d MMMM yyyy', 'id_ID');
   bool _changed = false;
+  String? _landName; // Derived from first item when filtering by land
+  final NumberFormat _currencyFormatter = NumberFormat.currency(
+    locale: 'id_ID',
+    symbol: 'Rp ',
+    decimalDigits: 0,
+  );
 
   @override
   void initState() {
@@ -38,8 +44,27 @@ class _KegiatanTanamPageState extends State<KegiatanTanamPage> {
       }
       final res = await _api.get(url);
       if (res.data is Map<String, dynamic> && res.data['data'] is List) {
+        // Original list returned from API
+        final originalList = (res.data['data'] as List);
+        // Filter out items with status 'harvested' so they don't appear here
+        final list = originalList
+            .where(
+              (item) =>
+                  ((item as Map<String, dynamic>)['status'] ?? '')
+                      .toString()
+                      .toLowerCase() !=
+                  'harvested',
+            )
+            .toList();
         setState(() {
-          _kegiatanTanam = res.data['data'];
+          _kegiatanTanam = list;
+          // Try to derive land name for AppBar if filtered by land
+          // Use the original list for deriving land name in case all items are filtered out
+          if (widget.landId != null && originalList.isNotEmpty) {
+            final first = originalList.first as Map<String, dynamic>;
+            final land = first['landId'] as Map<String, dynamic>?;
+            _landName = land?['name']?.toString();
+          }
         });
       } else {
         _error = 'Format data tidak sesuai';
@@ -66,7 +91,9 @@ class _KegiatanTanamPageState extends State<KegiatanTanamPage> {
         appBar: AppBar(
           title: Text(
             widget.landId != null
-                ? 'Kegiatan Tanam Lahan'
+                ? (_landName != null
+                      ? 'Kegiatan Tanam $_landName'
+                      : 'Kegiatan Tanam')
                 : 'Semua Kegiatan Tanam',
           ),
           centerTitle: true,
@@ -128,8 +155,7 @@ class _KegiatanTanamPageState extends State<KegiatanTanamPage> {
           final kegiatan = _kegiatanTanam[index];
           final seedData = kegiatan['seedId'] as Map<String, dynamic>?;
           final seedName = seedData?['name'] ?? 'Benih tidak diketahui';
-          final landData = kegiatan['landId'] as Map<String, dynamic>?;
-          final landName = landData?['name'] ?? 'Lahan tidak diketahui';
+          final seedVariety = seedData?['variety']?.toString();
           final plantingDateStr = kegiatan['plantingDate'] as String?;
           String formattedDate = 'Tanggal tidak diketahui';
           if (plantingDateStr != null) {
@@ -139,6 +165,21 @@ class _KegiatanTanamPageState extends State<KegiatanTanamPage> {
             }
           }
           final status = kegiatan['status'] ?? 'N/A';
+          final totalCost = (kegiatan['totalCost'] as num?)?.toDouble() ?? 0;
+          final totalRevenue =
+              (kegiatan['totalRevenue'] as num?)?.toDouble() ?? 0;
+          final profit = totalRevenue - totalCost;
+          final source = kegiatan['source'] as Map<String, dynamic>?;
+          final sourceType = source?['type']?.toString();
+          IconData sourceIcon = Icons.help_outline;
+          Color sourceColor = Colors.grey;
+          if (sourceType == 'DIRECT_PURCHASE') {
+            sourceIcon = Icons.store;
+            sourceColor = Colors.blue;
+          } else if (sourceType == 'FROM_NURSERY') {
+            sourceIcon = Icons.eco;
+            sourceColor = Colors.green;
+          }
 
           return Card(
             elevation: 2,
@@ -167,59 +208,87 @@ class _KegiatanTanamPageState extends State<KegiatanTanamPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Flexible(
-                          child: Text(
-                            seedName,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 4,
-                          ),
+                          padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: status == 'Active'
-                                ? Colors.green.shade100
-                                : Colors.grey.shade200,
-                            borderRadius: BorderRadius.circular(20),
+                            color: sourceColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                          child: Text(
-                            status,
-                            style: TextStyle(
-                              color: status == 'Active'
-                                  ? Colors.green.shade800
-                                  : Colors.grey.shade800,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          child: Icon(sourceIcon, color: sourceColor, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      seedVariety != null &&
+                                              seedVariety.isNotEmpty
+                                          ? '$seedName ($seedVariety)'
+                                          : seedName,
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _StatusChip(status: status),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.calendar_today,
+                                    size: 16,
+                                    color: Colors.grey,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    formattedDate,
+                                    style: const TextStyle(color: Colors.grey),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     Row(
                       children: [
-                        const Icon(Icons.terrain, size: 16, color: Colors.grey),
-                        const SizedBox(width: 8),
-                        Text(landName),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.calendar_today,
-                          size: 16,
-                          color: Colors.grey,
+                        _InfoChip(
+                          icon: Icons.arrow_downward,
+                          color: Colors.red,
+                          label: 'Biaya',
+                          value: _currencyFormatter.format(totalCost),
                         ),
                         const SizedBox(width: 8),
-                        Text(formattedDate),
+                        _InfoChip(
+                          icon: Icons.arrow_upward,
+                          color: Colors.green,
+                          label: 'Pendapatan',
+                          value: _currencyFormatter.format(totalRevenue),
+                        ),
+                        const SizedBox(width: 8),
+                        _InfoChip(
+                          icon: profit >= 0
+                              ? Icons.trending_up
+                              : Icons.trending_down,
+                          color: profit >= 0 ? Colors.blue : Colors.orange,
+                          label: 'Profit',
+                          value: _currencyFormatter.format(profit),
+                        ),
                       ],
                     ),
                   ],
@@ -228,6 +297,95 @@ class _KegiatanTanamPageState extends State<KegiatanTanamPage> {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  final String status;
+  const _StatusChip({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    Color bg;
+    Color fg;
+    switch (status.toLowerCase()) {
+      case 'active':
+        bg = Colors.green.shade100;
+        fg = Colors.green.shade800;
+        break;
+      case 'harvested':
+        bg = Colors.teal.shade100;
+        fg = Colors.teal.shade800;
+        break;
+      case 'pending':
+        bg = Colors.amber.shade100;
+        fg = Colors.amber.shade800;
+        break;
+      default:
+        bg = Colors.grey.shade200;
+        fg = Colors.grey.shade800;
+        break;
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        status,
+        style: TextStyle(color: fg, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+}
+
+class _InfoChip extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String label;
+  final String value;
+  const _InfoChip({
+    required this.icon,
+    required this.color,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                  ),
+                  Text(
+                    value,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

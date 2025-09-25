@@ -50,21 +50,34 @@ class _PemupukanAddPageState extends State<PemupukanAddPage> {
         _pupukController.text = _selectedPupuk?['name'] ?? 'Error';
 
         final price = (_selectedPupuk?['price'] as num?)?.toDouble() ?? 0;
-        final netWeight =
+        final netWeightRaw =
             (_selectedPupuk?['net_weight'] as num?)?.toDouble() ?? 1;
         final netWeightUnit =
-            _selectedPupuk?['net_weight_unit']?.toString() ?? 'unit';
+            _selectedPupuk?['net_weight_unit']?.toString().toLowerCase() ??
+            'kg';
 
-        double pricePerUnit = (price > 0 && netWeight > 0)
-            ? price / netWeight
+        // Convert selected product net weight to KG for consistent API contract
+        double netWeightInKg;
+        if (netWeightUnit == 'kg' || netWeightUnit == 'kilogram') {
+          netWeightInKg = netWeightRaw;
+        } else if (netWeightUnit == 'g' || netWeightUnit == 'gram') {
+          netWeightInKg = netWeightRaw / 1000.0;
+        } else {
+          // Fallback: assume provided value already represents kg
+          netWeightInKg = netWeightRaw;
+        }
+
+        // Price per kg
+        double pricePerKg = (price > 0 && netWeightInKg > 0)
+            ? price / netWeightInKg
             : 0;
 
-        _unitController.text = netWeightUnit;
+        _unitController.text = 'kg';
         _pricePerUnitController.text = NumberFormat.currency(
           locale: 'id_ID',
           symbol: 'Rp ',
           decimalDigits: 0,
-        ).format(pricePerUnit);
+        ).format(pricePerKg);
       });
     }
   }
@@ -101,15 +114,26 @@ class _PemupukanAddPageState extends State<PemupukanAddPage> {
 
       // Menghitung total jumlah dalam satuan berat (e.g., kg)
       final amountInPackages = num.tryParse(_amountController.text) ?? 0;
-      final netWeight =
+      final netWeightRaw =
           (_selectedPupuk?['net_weight'] as num?)?.toDouble() ?? 1;
-      final totalAmountInWeight = amountInPackages * netWeight;
+      final netWeightUnit =
+          _selectedPupuk?['net_weight_unit']?.toString().toLowerCase() ?? 'kg';
+      double netWeightInKg;
+      if (netWeightUnit == 'kg' || netWeightUnit == 'kilogram') {
+        netWeightInKg = netWeightRaw;
+      } else if (netWeightUnit == 'g' || netWeightUnit == 'gram') {
+        netWeightInKg = netWeightRaw / 1000.0;
+      } else {
+        netWeightInKg = netWeightRaw;
+      }
+      final totalAmountInWeight = amountInPackages * netWeightInKg;
 
       final body = {
         "fertilizerId": _selectedPupuk?['_id'],
-        "date": _selectedDate?.toIso8601String(),
+        // Kirim tanggal dalam UTC ISO8601 agar sesuai dengan backend
+        "date": _selectedDate?.toUtc().toIso8601String(),
         "amount": totalAmountInWeight, // Mengirim total berat ke API
-        "unit": _unitController.text,
+        "unit": 'kg',
         "pricePerUnit": num.tryParse(pricePerUnitRaw),
         "notes": _notesController.text,
       };

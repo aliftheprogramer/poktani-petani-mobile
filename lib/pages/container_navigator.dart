@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:niteni/pages/chat/chat_page.dart';
 import 'package:niteni/pages/home/home_page.dart';
 import 'package:niteni/pages/kegiatan_tanam/kegiatan_tanam_page.dart';
+import 'package:niteni/pages/panen/list_panen_page.dart';
 import 'lahan/lahan_page.dart';
 import 'semaian/semaian_page.dart';
 
@@ -21,6 +22,7 @@ class _ContainerNavigatorState extends State<ContainerNavigator> {
     const HomePage(),
     const SemaianPage(),
     const LahanPage(),
+    const ListPanenPage(),
     const ChatPage(),
   ];
 
@@ -77,6 +79,10 @@ class _ContainerNavigatorState extends State<ContainerNavigator> {
                 BottomNavigationBarItem(
                   icon: Icon(Icons.terrain),
                   label: 'Lahan',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.agriculture),
+                  label: 'Panen',
                 ),
                 BottomNavigationBarItem(
                   icon: Icon(Icons.auto_awesome),
