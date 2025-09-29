@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import '../../services/api_service.dart';
 import 'lahan_detail_page.dart';
 import 'lahan_add_page.dart';
@@ -218,9 +220,13 @@ class _LahanPageState extends State<LahanPage> {
                 final name = item['name']?.toString() ?? '-';
                 final landArea = item['landArea']?.toString() ?? '-';
                 final soilType = item['soilType']?.toString() ?? '-';
-                final hamlet = item['hamlet']?.toString() ?? '-';
-                final village = item['village']?.toString() ?? '-';
-                final district = item['district']?.toString() ?? '-';
+                final status = (item['status'] ?? 'Aktif').toString();
+                final latRaw = item['latitude'];
+                final lngRaw = item['longitude'];
+                final LatLng? pos =
+                    (latRaw is num && lngRaw is num)
+                        ? LatLng(latRaw.toDouble(), lngRaw.toDouble())
+                        : null;
 
                 return Container(
                   margin: const EdgeInsets.only(bottom: 12),
@@ -305,24 +311,7 @@ class _LahanPageState extends State<LahanPage> {
                                       ),
                                     ),
                                     const SizedBox(height: 4),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 6,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.green.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      child: Text(
-                                        'Aktif',
-                                        style: TextStyle(
-                                          color: Colors.green.shade700,
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ),
+                                    _buildStatusPillSmall(status),
                                   ],
                                 ),
                               ),
@@ -340,9 +329,27 @@ class _LahanPageState extends State<LahanPage> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 12),
 
-                          // Stats Cards Row
+                          // Map preview
+                          if (pos != null)
+                            _buildMapPreview(pos)
+                          else
+                            Container(
+                              height: 150,
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.grey.shade300),
+                              ),
+                              child: const Center(
+                                child: Text('Lokasi belum ditetapkan'),
+                              ),
+                            ),
+
+                          const SizedBox(height: 12),
+
+                          // Stats under the map: Luas, Jenis Tanah
                           Row(
                             children: [
                               Expanded(
@@ -363,44 +370,6 @@ class _LahanPageState extends State<LahanPage> {
                                 ),
                               ),
                             ],
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Location Info
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade50,
-                              borderRadius: BorderRadius.circular(15),
-                              border: Border.all(
-                                color: Colors.grey.shade200,
-                                width: 1,
-                              ),
-                            ),
-                            child: Column(
-                              children: [
-                                _buildLocationItem(
-                                  Icons.location_on_rounded,
-                                  'Dusun',
-                                  hamlet,
-                                  Colors.red,
-                                ),
-                                const SizedBox(height: 8),
-                                _buildLocationItem(
-                                  Icons.home_work_rounded,
-                                  'Desa',
-                                  village,
-                                  Colors.green,
-                                ),
-                                const SizedBox(height: 8),
-                                _buildLocationItem(
-                                  Icons.business_rounded,
-                                  'Kecamatan',
-                                  district,
-                                  Colors.blue,
-                                ),
-                              ],
-                            ),
                           ),
                         ],
                       ),
@@ -538,6 +507,123 @@ class _LahanPageState extends State<LahanPage> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildMapPreview(LatLng pos) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox(
+        height: 150,
+        width: double.infinity,
+        child: FlutterMap(
+          options: MapOptions(
+            initialCenter: pos,
+            initialZoom: 14,
+          ),
+          children: [
+            TileLayer(
+              urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+              subdomains: const ['a', 'b', 'c'],
+              userAgentPackageName: 'niteni.poktani_petani_mobile',
+            ),
+            MarkerLayer(markers: [
+              Marker(
+                point: pos,
+                width: 36,
+                height: 36,
+                child: const Icon(Icons.location_pin, color: Colors.red, size: 36),
+              )
+            ]),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusChip(String status) {
+    final s = status.toLowerCase();
+    Color bg;
+    Color fg;
+    String label;
+    if (s == 'aktif' || s == 'active') {
+      bg = Colors.green.withOpacity(0.1);
+      fg = Colors.green.shade800;
+      label = 'Aktif';
+    } else if (s == 'nonaktif' || s == 'inactive') {
+      bg = Colors.grey.withOpacity(0.1);
+      fg = Colors.grey.shade800;
+      label = 'Tidak Aktif';
+    } else {
+      bg = Colors.blueGrey.withOpacity(0.1);
+      fg = Colors.blueGrey.shade800;
+      label = status;
+    }
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: fg.withOpacity(0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(color: fg.withOpacity(0.2), width: 1),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            s == 'aktif' || s == 'active' ? Icons.check_circle : Icons.info_outline,
+            color: fg,
+            size: 18,
+          ),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(color: fg, fontWeight: FontWeight.w700),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusPillSmall(String status) {
+    final s = status.toLowerCase();
+    Color bg;
+    Color fg;
+    String label;
+    if (s == 'aktif' || s == 'active') {
+      bg = Colors.green.withOpacity(0.1);
+      fg = Colors.green.shade700;
+      label = 'Aktif';
+    } else if (s == 'nonaktif' || s == 'inactive') {
+      bg = Colors.grey.withOpacity(0.1);
+      fg = Colors.grey.shade700;
+      label = 'Tidak Aktif';
+    } else {
+      bg = Colors.blueGrey.withOpacity(0.1);
+      fg = Colors.blueGrey.shade700;
+      label = status;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: fg.withOpacity(0.2)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(color: fg, fontWeight: FontWeight.w600, fontSize: 12),
+      ),
     );
   }
 }

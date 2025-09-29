@@ -1,6 +1,10 @@
 //pages/lahan/lahan_detail_page.dart
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:niteni/pages/kegiatan_tanam/kegiatan_tanam_add_page.dart';
 import 'package:niteni/pages/kegiatan_tanam/kegiatan_tanam_detail_page.dart';
@@ -438,6 +442,85 @@ class _LahanDetailPageState extends State<LahanDetailPage>
             'Lahan',
             _data!['landArea'].toString(),
           ),
+          const SizedBox(height: 12),
+          if (_data!['latitude'] != null && _data!['longitude'] != null)
+            _buildInfoItem(
+              Icons.my_location,
+              'Koordinat',
+              'Lat: ${(_data!['latitude'] as num).toStringAsFixed(6)}, Lng: ${(_data!['longitude'] as num).toStringAsFixed(6)}',
+            ),
+
+          // Section: Preview Peta OSM
+          const SizedBox(height: 16),
+          Text(
+            'Lokasi Lahan',
+            style: TextStyle(
+              color: Colors.grey.shade800,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Builder(builder: (context) {
+            final latRaw = _data?['latitude'];
+            final lngRaw = _data?['longitude'];
+            LatLng? pos;
+            if (latRaw is num && lngRaw is num) {
+              pos = LatLng(latRaw.toDouble(), lngRaw.toDouble());
+            }
+            if (pos == null) {
+              return Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.place_outlined, color: Colors.grey.shade600),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Lokasi belum ditetapkan',
+                        style: TextStyle(color: Colors.grey.shade700),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildMapPreviewDetail(pos),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: () => _openInOSM(pos!),
+                      icon: const Icon(Icons.public),
+                      label: const Text('Buka di OpenStreetMap'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () => _copyCoords(pos!),
+                      icon: const Icon(Icons.copy_rounded),
+                      label: const Text('Salin Koordinat'),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: () => _openFullMap(pos!),
+                      icon: const Icon(Icons.map_rounded),
+                      label: const Text('Lihat Peta Penuh'),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          }),
         ],
       ),
     );
@@ -901,5 +984,251 @@ class _LahanDetailPageState extends State<LahanDetailPage>
         ),
       ),
     );
+  }
+
+  // ===== Lokasi & Peta Helpers =====
+  Widget _buildMapPreviewDetail(LatLng pos) {
+    final mapController = MapController();
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: SizedBox(
+        height: 220,
+        width: double.infinity,
+        child: Stack(
+          children: [
+            FlutterMap(
+              mapController: mapController,
+              options: MapOptions(
+                initialCenter: pos,
+                initialZoom: 15,
+                interactionOptions: const InteractionOptions(
+                  flags: InteractiveFlag.pinchZoom | InteractiveFlag.drag,
+                ),
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.example.niteni',
+                ),
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: pos,
+                      width: 40,
+                      height: 40,
+                      child: const Icon(
+                        Icons.location_on,
+                        color: Colors.redAccent,
+                        size: 36,
+                      ),
+                    ),
+                  ],
+                ),
+                Align(
+                  alignment: Alignment.bottomRight,
+                  child: Padding(
+                    padding: const EdgeInsets.all(6.0),
+                    child: RichAttributionWidget(
+                      attributions: [
+                        TextSourceAttribution(
+                          '© OpenStreetMap contributors',
+                          onTap: () => _openInOSM(pos),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Positioned(
+              right: 8,
+              top: 8,
+              child: Column(
+                children: [
+                  _roundIconButton(
+                    icon: Icons.add,
+                    onTap: () {
+                      final z = mapController.camera.zoom + 1;
+                      mapController.move(pos, z);
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  _roundIconButton(
+                    icon: Icons.remove,
+                    onTap: () {
+                      final z = mapController.camera.zoom - 1;
+                      mapController.move(pos, z);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _roundIconButton({required IconData icon, required VoidCallback onTap}) {
+    return Material(
+      color: Colors.white,
+      shape: const CircleBorder(),
+      elevation: 2,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Icon(icon, size: 20, color: Colors.grey.shade800),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openInOSM(LatLng pos) async {
+    final url = Uri.parse(
+      'https://www.openstreetmap.org/?mlat=${pos.latitude}&mlon=${pos.longitude}#map=17/${pos.latitude}/${pos.longitude}',
+    );
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tidak dapat membuka OpenStreetMap')),
+      );
+    }
+  }
+
+  Future<void> _copyCoords(LatLng pos) async {
+    final text = '${pos.latitude.toStringAsFixed(6)}, ${pos.longitude.toStringAsFixed(6)}';
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Koordinat disalin: $text')),
+    );
+  }
+
+  void _openFullMap(LatLng pos) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _LahanFullMapPage(
+          pos: pos,
+          title: (_data?['name']?.toString() ?? 'Lokasi Lahan'),
+        ),
+      ),
+    );
+  }
+}
+
+class _LahanFullMapPage extends StatefulWidget {
+  final LatLng pos;
+  final String title;
+  const _LahanFullMapPage({required this.pos, required this.title});
+
+  @override
+  State<_LahanFullMapPage> createState() => _LahanFullMapPageState();
+}
+
+class _LahanFullMapPageState extends State<_LahanFullMapPage> {
+  final MapController _controller = MapController();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.title)),
+      body: Stack(
+        children: [
+          FlutterMap(
+            mapController: _controller,
+            options: MapOptions(
+              initialCenter: widget.pos,
+              initialZoom: 16,
+              interactionOptions: const InteractionOptions(
+                flags: InteractiveFlag.all,
+              ),
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.example.niteni',
+              ),
+              MarkerLayer(
+                markers: [
+                  Marker(
+                    point: widget.pos,
+                    width: 40,
+                    height: 40,
+                    child: const Icon(Icons.location_on, color: Colors.redAccent, size: 40),
+                  ),
+                ],
+              ),
+              Align(
+                alignment: Alignment.bottomRight,
+                child: Padding(
+                  padding: const EdgeInsets.all(6.0),
+                  child: RichAttributionWidget(
+                    attributions: [
+                      TextSourceAttribution(
+                        '© OpenStreetMap contributors',
+                        onTap: () => _openInOSM(widget.pos),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Positioned(
+            right: 12,
+            top: 12,
+            child: Column(
+              children: [
+                _roundIconButton(
+                  icon: Icons.add,
+                  onTap: () {
+                    final z = _controller.camera.zoom + 1;
+                    _controller.move(widget.pos, z);
+                  },
+                ),
+                const SizedBox(height: 8),
+                _roundIconButton(
+                  icon: Icons.remove,
+                  onTap: () {
+                    final z = _controller.camera.zoom - 1;
+                    _controller.move(widget.pos, z);
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _openInOSM(widget.pos),
+        icon: const Icon(Icons.public),
+        label: const Text('Buka di OSM'),
+      ),
+    );
+  }
+
+  Widget _roundIconButton({required IconData icon, required VoidCallback onTap}) {
+    return Material(
+      color: Colors.white,
+      shape: const CircleBorder(),
+      elevation: 2,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Icon(icon, size: 20, color: Colors.grey.shade800),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openInOSM(LatLng pos) async {
+    final url = Uri.parse(
+      'https://www.openstreetmap.org/?mlat=${pos.latitude}&mlon=${pos.longitude}#map=17/${pos.latitude}/${pos.longitude}',
+    );
+    await launchUrl(url, mode: LaunchMode.externalApplication);
   }
 }

@@ -5,6 +5,7 @@ import 'pages/auth/welcome.dart';
 import 'pages/container_navigator.dart';
 import 'services/api_service.dart';
 import 'services/storage_service.dart';
+import 'pages/lahan/location_picker_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,6 +39,19 @@ class MyApp extends StatelessWidget {
       routes: {
         '/login': (context) => const WelcomePage(),
         '/home': (context) => const ContainerNavigator(),
+        '/location-picker': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments;
+          double? lat;
+          double? lng;
+          if (args is Map) {
+            final a = args;
+            final latRaw = a['lat'];
+            final lngRaw = a['lng'];
+            if (latRaw is num) lat = latRaw.toDouble();
+            if (lngRaw is num) lng = lngRaw.toDouble();
+          }
+          return LocationPickerPage(initialLat: lat, initialLng: lng);
+        },
       },
     );
   }

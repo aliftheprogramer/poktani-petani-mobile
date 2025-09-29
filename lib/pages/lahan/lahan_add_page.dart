@@ -22,6 +22,8 @@ class _LahanAddPageState extends State<LahanAddPage>
   final _hamletCtrl = TextEditingController();
   final _villageCtrl = TextEditingController();
   final _districtCtrl = TextEditingController();
+  double? _latitude;
+  double? _longitude;
 
   bool _submitting = false;
   final ApiService _api = ApiService();
@@ -49,6 +51,13 @@ class _LahanAddPageState extends State<LahanAddPage>
       _hamletCtrl.text = init['hamlet']?.toString() ?? '';
       _villageCtrl.text = init['village']?.toString() ?? '';
       _districtCtrl.text = init['district']?.toString() ?? '';
+      // optional coordinates if provided by detail API
+      final lat = init['latitude'];
+      final lng = init['longitude'];
+      if (lat is num && lng is num) {
+        _latitude = lat.toDouble();
+        _longitude = lng.toDouble();
+      }
     }
   }
 
@@ -66,6 +75,10 @@ class _LahanAddPageState extends State<LahanAddPage>
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_latitude == null || _longitude == null) {
+      _showErrorSnackBar('Silakan pilih lokasi lahan di peta');
+      return;
+    }
     setState(() => _submitting = true);
     try {
       final landAreaVal = int.tryParse(_landAreaCtrl.text.trim());
@@ -76,6 +89,8 @@ class _LahanAddPageState extends State<LahanAddPage>
         'hamlet': _hamletCtrl.text.trim(),
         'village': _villageCtrl.text.trim(),
         'district': _districtCtrl.text.trim(),
+        'latitude': _latitude,
+        'longitude': _longitude,
       };
 
       final res = widget.editId == null
@@ -299,6 +314,30 @@ class _LahanAddPageState extends State<LahanAddPage>
             ),
           ),
           const SizedBox(height: 20),
+          _buildPickLocationButton(),
+          const SizedBox(height: 12),
+          if (_latitude != null && _longitude != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.my_location, color: Colors.green),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Lat: ${_latitude!.toStringAsFixed(6)}, Lng: ${_longitude!.toStringAsFixed(6)}',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 12),
           _buildFormField(
             label: 'Dusun',
             icon: Icons.location_on_rounded,
@@ -333,6 +372,42 @@ class _LahanAddPageState extends State<LahanAddPage>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPickLocationButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        icon: const Icon(Icons.map_rounded),
+        label: const Text('Pilih Lokasi di Peta'),
+        onPressed: () async {
+          // lazy import to avoid circular deps
+          // ignore: use_build_context_synchronously
+          final result = await Navigator.pushNamed(
+            context,
+            '/location-picker',
+            arguments: {
+              'lat': _latitude,
+              'lng': _longitude,
+            },
+          );
+
+          if (!mounted) return;
+          if (result is Map<String, dynamic>) {
+            setState(() {
+              _latitude = (result['latitude'] as num?)?.toDouble();
+              _longitude = (result['longitude'] as num?)?.toDouble();
+              final hamlet = result['hamlet']?.toString();
+              final village = result['village']?.toString();
+              final district = result['district']?.toString();
+              if (hamlet != null && hamlet.isNotEmpty) _hamletCtrl.text = hamlet;
+              if (village != null && village.isNotEmpty) _villageCtrl.text = village;
+              if (district != null && district.isNotEmpty) _districtCtrl.text = district;
+            });
+          }
+        },
       ),
     );
   }
