@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import 'package:intl/intl.dart';
 import 'package:niteni/pages/pupuk/list_pupuk.dart';
 import 'package:niteni/services/api_service.dart';
@@ -153,10 +154,27 @@ class _PemupukanAddPageState extends State<PemupukanAddPage> {
         Navigator.pop(context, true);
       }
     } catch (e) {
+      // 1. Siapkan pesan error default
+      String errorMessage = 'Gagal menyimpan data. Terjadi kesalahan.';
+
+      // 2. Cek apakah errornya dari Dio dan punya respons dari server
+      if (e is DioException && e.response != null) {
+        // Ambil data dari respons server
+        final responseData = e.response?.data;
+
+        // 3. Cek apakah data respons adalah Map dan punya kunci 'details'
+        if (responseData is Map<String, dynamic> &&
+            responseData.containsKey('details')) {
+          // Jika ya, gunakan pesan dari server!
+          errorMessage = responseData['details'];
+        }
+      }
+
+      // 4. Tampilkan pesan error yang sudah diproses (lebih ramah pengguna)
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Gagal menyimpan data: $e'),
+            content: Text(errorMessage), // Tampilkan pesan yang sudah diolah
             backgroundColor: Colors.red,
           ),
         );
