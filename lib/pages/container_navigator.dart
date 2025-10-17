@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:niteni/pages/chat/chat_page.dart';
 import 'package:niteni/pages/home/home_page.dart';
-import 'package:niteni/pages/kegiatan_tanam/kegiatan_tanam_page.dart';
 import 'package:niteni/pages/panen/list_panen_page.dart';
 import 'lahan/lahan_page.dart';
 import 'semaian/semaian_page.dart';

@@ -467,48 +467,6 @@ class _LahanPageState extends State<LahanPage> {
     );
   }
 
-  Widget _buildLocationItem(
-    IconData icon,
-    String label,
-    String value,
-    Color color,
-  ) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, color: color, size: 16),
-        ),
-        const SizedBox(width: 12),
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.grey.shade600,
-            fontWeight: FontWeight.w500,
-            fontSize: 13,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            value,
-            style: TextStyle(
-              color: kTextColor,
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
-            ),
-            textAlign: TextAlign.end,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _buildMapPreview(LatLng pos) {
     return ClipRRect(
@@ -541,58 +499,6 @@ class _LahanPageState extends State<LahanPage> {
     );
   }
 
-  Widget _buildStatusChip(String status) {
-    final s = status.toLowerCase();
-    Color bg;
-    Color fg;
-    String label;
-    if (s == 'aktif' || s == 'active') {
-      bg = Colors.green.withOpacity(0.1);
-      fg = Colors.green.shade800;
-      label = 'Aktif';
-    } else if (s == 'nonaktif' || s == 'inactive') {
-      bg = Colors.grey.withOpacity(0.1);
-      fg = Colors.grey.shade800;
-      label = 'Tidak Aktif';
-    } else {
-      bg = Colors.blueGrey.withOpacity(0.1);
-      fg = Colors.blueGrey.shade800;
-      label = status;
-    }
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: fg.withOpacity(0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-        border: Border.all(color: fg.withOpacity(0.2), width: 1),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            s == 'aktif' || s == 'active' ? Icons.check_circle : Icons.info_outline,
-            color: fg,
-            size: 18,
-          ),
-          const SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              label,
-              style: TextStyle(color: fg, fontWeight: FontWeight.w700),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildStatusPillSmall(String status) {
     final s = status.toLowerCase();
