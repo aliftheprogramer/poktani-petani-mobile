@@ -9,7 +9,7 @@ class ApiService {
   ApiService._internal();
 
   late Dio _dio;
-  final String _baseUrl = 'http://localhost:3000/api';
+  final String _baseUrl = 'https://poktani-api.vercel.app/api';
   final Logger _logger = Logger(
     printer: PrettyPrinter(
       methodCount: 0,
